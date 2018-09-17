@@ -1,5 +1,9 @@
-<table>
-{% for item, url in data %}
-    <li><a href='{{ url }}'>{{ item }}</a></li>
+{% if data %}
+<ul>
+{% for item in data %}
+    <li><a href='/{{ item }}'>{{ item }}</a></li>
 {% endfor %}
-</table>
+</ul>
+{% else %}
+NO DATA
+{% endif %}

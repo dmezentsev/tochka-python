@@ -1,12 +1,15 @@
-from flask import Flask, render_template, url_for
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from db.models import Company
+from flask import Flask, render_template, url_for, request
+from db.models import Company, TickerLog, Insider, InsiderLog
+from db.configurator import get_db_url
+from db.connector import create_orm_session, get_orm_session
+import json
 
 app = Flask(__name__)
+session = create_orm_session(get_db_url('db.conf'))
 
 
 def api_wrapper(rule, **options):
+    """API call support"""
     def wrapper(f):
         app.route(rule, **options)(f)
         app.route('/api' + rule, **options)(f)
@@ -14,20 +17,35 @@ def api_wrapper(rule, **options):
     return wrapper
 
 
-def render_wrapper(f):
-    def wrapper(*args, **kwargs):
-        result = f(*args, **kwargs)
+def renderer(template, **kwargs):
+    """JSON vs HTML strategy"""
+    if request.path.startswith('/api/'):
+        return json.dumps(kwargs)
+    else:
+        return render_template(template, **kwargs)
+
+
+def orm_result(objects, extractor):
+    for obj in objects:
+        yield extractor(obj)
 
 
 @api_wrapper("/")
 def tickers():
-    orm_engine = create_engine('postgresql://postgres:1@127.0.0.1:5432/ticker', encoding='utf-8')
-    session = sessionmaker(bind=orm_engine, autocommit=True)
-    tickers = session().query(Company.code).all()
-    session.close_all()
-    return render_template('list.tpl', data=[(ticker.strip(), url_for('ticker_log', name=ticker.strip())) for ticker, in tickers])
+    with get_orm_session(session) as orm:
+        tcks = orm.query(Company.code).all()
+        return renderer('list.tpl', data=[ticker.strip() for ticker, in tcks])
 
 
 @api_wrapper("/<name>")
 def ticker_log(name):
-    return render_template('table.tpl', data=[[123] * 8] * 3)
+    with get_orm_session(session) as orm:
+        ticker_log = orm.query(TickerLog).filter(Company.code == name).order_by(TickerLog.date.desc()).all()
+        return renderer('ticker_log.tpl', data=orm_result(ticker_log))
+
+
+@api_wrapper("/<name>/insider")
+def insider(name):
+    with get_orm_session(session) as orm:
+        insiders = orm.query(Insider.name).filter(Company.code == name).order_by(Insider.name).all()
+        return renderer('list.tpl', data=[insider.strip() for insider, in insiders])

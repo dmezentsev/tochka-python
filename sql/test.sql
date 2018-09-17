@@ -1,4 +1,10 @@
-/*insert into ticker_log
+/*
+insert into company (code, name)
+  values
+    ('AAPL', 'Apple'),
+    ('GOOG', 'Google');
+
+insert into ticker_log
     (company_id, date, c_open, c_close)
   values
     (1, '2018-08-01', 200, 250),
