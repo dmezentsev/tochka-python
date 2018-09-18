@@ -1,7 +1,6 @@
 from flask import Flask, render_template, url_for, request
 from db.models import Company, TickerLog, Insider, InsiderLog
-from db.configurator import get_db_url
-from db.connector import create_orm_session, get_orm_session
+from db.connector import create_orm_session, get_orm_session, get_db_url
 import json
 
 app = Flask(__name__)
@@ -17,12 +16,11 @@ def api_wrapper(rule, **options):
     return wrapper
 
 
-def renderer(template, **kwargs):
+def is_api_call():
     """JSON vs HTML strategy"""
     if request.path.startswith('/api/'):
-        return json.dumps(kwargs)
-    else:
-        return render_template(template, **kwargs)
+        return True
+    return False
 
 
 def orm_result(objects, extractor):
@@ -33,8 +31,11 @@ def orm_result(objects, extractor):
 @api_wrapper("/")
 def tickers():
     with get_orm_session(session) as orm:
-        tcks = orm.query(Company.code).all()
-        return renderer('list.tpl', data=[ticker.strip() for ticker, in tcks])
+        tcks = [ticker.strip() for ticker, in orm.query(Company.code).all()]
+        if is_api_call():
+            return json.dumps(tcks)
+        return render_template('list.tpl',
+                               data=[(ticker.strip(), url_for('ticker_log', name=ticker)) for ticker, in tcks])
 
 
 @api_wrapper("/<name>")

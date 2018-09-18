@@ -1,7 +1,7 @@
 {% if data %}
 <ul>
-{% for item in data %}
-    <li><a href='/{{ item }}'>{{ item }}</a></li>
+{% for item, url in data %}
+    <li><a href='{{ url }}'>{{ item }}</a></li>
 {% endfor %}
 </ul>
 {% else %}
